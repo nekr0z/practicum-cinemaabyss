@@ -61,6 +61,17 @@
 Приложите скриншот тестов и скриншот состояния топиков Kafka http://localhost:8090 
 
 
+#### Результат
+
+[Proxy](src/microservices/proxy/main.go) направляет запросы фильмов в монолит или movies по `MOVIES_MIGRATION_PERCENT`, события — в events, остальные — в монолит. При `GRADUAL_MIGRATION=false` все запросы фильмов идут в movies.
+
+[Events](src/microservices/events/main.go) принимает события Movie/User/Payment, публикует их в Kafka и сам читает с записью в лог.
+
+![Postman](docs/postman-tests.png)
+
+![Kafka UI](docs/kafka-topics.png)
+
+
 ## Задание 3
 
 Команда начала переезд в Kubernetes для лучшего масштабирования и повышения надежности. 
