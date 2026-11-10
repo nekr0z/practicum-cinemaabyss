@@ -451,3 +451,7 @@ kubectl delete namespace istio-system
 kubectl delete all --all -n cinemaabyss
 kubectl delete namespace cinemaabyss
 ```
+
+#### Результат
+
+![stats](docs/fortio-stats.png)
