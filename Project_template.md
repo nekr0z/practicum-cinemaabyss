@@ -287,21 +287,16 @@ cat .docker/config.json | base64
 Добавьте сюда скриншота вывода при вызове https://cinemaabyss.example.com/api/movies и  скриншот вывода event-service после вызова тестов.
 
 
-### Реализация задания 3
+#### Результат
 
-[Workflow сборки](.github/workflows/docker-build-push.yml) дополнен сборкой и публикацией proxy/events в `ghcr.io/nekr0z/practicum-cinemaabyss` и запуском для ветки `cinema`. [API Tests](.github/workflows/api-tests.yml) запускает исходную Postman-коллекцию для этой ветки. Monolith и movies в Kubernetes используют готовые образы из `ghcr.io/db-exp/cinemaabysstest`, как в исходных манифестах.
 
-Добавлены Deployment/Service для [events](src/kubernetes/events-service.yaml) и [proxy](src/kubernetes/proxy-service.yaml). [Ingress](src/kubernetes/ingress.yaml) направляет `/` в proxy, `/api/events` — в events. Адреса сервисов и процент миграции заданы в [ConfigMap](src/kubernetes/configmap.yaml).
+Для запуска старого образа ZooKeeper в kind пришлось ограничить число открытых файлов: без этого процесс завершался с `OOMKilled`.
 
-После изменения процента миграции примените ConfigMap и перезапустите proxy, чтобы обновились переменные окружения:
+Проверка через локальный ingress (самоподписанный сертификат):
 
-```bash
-kubectl apply -f src/kubernetes/configmap.yaml
-kubectl -n cinemaabyss rollout restart deployment/proxy-service
-kubectl -n cinemaabyss rollout status deployment/proxy-service
-```
+![Ответ API movies](docs/kubernetes-movies.png)
 
-Локальная проверка исходной коллекции: **22 запроса, 42 проверки, 0 ошибок**. Манифесты прошли server-side dry-run в отдельном kind-кластере. Запуск GitHub Actions и проверка опубликованных образов в Kubernetes — после отправки изменений в `cinema`.
+![Публикация и обработка событий в Kubernetes](docs/kubernetes-events.png)
 
 ## Задание 4
 Для простоты дальнейшего обновления и развертывания вам как архитектуру необходимо так же реализовать helm-чарты для прокси-сервиса и проверить работу 

@@ -48,6 +48,8 @@ spec:
       containers:
       - name: zookeeper
         image: wurstmeister/zookeeper
+        # Bound open files for the old JVM under kind/containerd.
+        command: ["/bin/sh", "-c", "ulimit -n 65536; /usr/sbin/sshd && exec bash /usr/bin/start-zk.sh"]
         ports:
         - containerPort: 2181
           name: client
