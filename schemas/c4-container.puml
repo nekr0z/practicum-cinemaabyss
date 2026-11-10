@@ -1,0 +1,82 @@
+@startuml c4-container
+!includeurl https://raw.githubusercontent.com/RicardoNiepel/C4-PlantUML/master/C4_Container.puml
+
+title Кинобездна — диаграмма контейнеров (To-Be)
+
+skinparam nodesep 50
+skinparam ranksep 60
+
+Person(viewer, "Зритель", "Выбирает фильмы, ставит оценки и оформляет подписку")
+Person(editor, "Редактор каталога", "Добавляет фильмы и обновляет метаданные")
+
+System_Ext(payment_provider, "Платёжный провайдер", "Проводит списания и хранит платёжные реквизиты")
+
+System_Boundary(cinemaabyss, "Кинобездна") {
+    Container(web, "Веб-приложение", "JavaScript, браузер", "Каталог, личный кабинет и интерфейс редактора")
+    Container(api_gateway, "API Gateway / proxy", "Go", "Единая точка входа: маршрутизация, проверка JWT, ограничение запросов")
+
+    Boundary(users_domain, "Пользователи") {
+        Container(users, "Сервис пользователей", "Go", "Регистрация, вход, профили и роли; выдача JWT")
+        ContainerDb(users_db, "БД пользователей", "PostgreSQL", "Учётные записи, роли, outbox")
+    }
+
+    Boundary(movies_domain, "Фильмы") {
+        Container(movies, "Сервис фильмов / movies", "Go", "Каталог, жанры, оценки зрителей и рейтинг фильмов")
+        ContainerDb(movies_db, "БД фильмов", "PostgreSQL", "Фильмы, жанры, оценки, outbox")
+    }
+
+    Boundary(subscriptions_domain, "Подписки") {
+        Container(subscriptions, "Сервис подписок", "Go", "Тарифы, оформление, продление и срок доступа")
+        ContainerDb(subscriptions_db, "БД подписок", "PostgreSQL", "Тарифы, подписки, статусы, outbox, обработанные сообщения")
+    }
+
+    Boundary(payments_domain, "Платежи") {
+        Container(payments, "Сервис платежей", "Go", "Платёжные операции, статусы и интеграция с провайдером")
+        ContainerDb(payments_db, "БД платежей", "PostgreSQL", "Платежи, ключи идемпотентности, outbox, обработанные сообщения")
+    }
+
+    Boundary(events_domain, "События и аналитика") {
+        Container(events, "Сервис событий / events", "Go", "Приём событий просмотра; журнал событий и история просмотров")
+        ContainerDb(events_db, "БД событий", "PostgreSQL", "Просмотры, журнал событий, обработанные сообщения")
+    }
+
+    ContainerQueue(kafka, "Брокер сообщений", "Apache Kafka", "user-events, movie-events, payment-commands, payment-events, subscription-events, view-events")
+}
+
+Rel(viewer, web, "Работает в браузере", "HTTPS")
+Rel(editor, web, "Управляет каталогом", "HTTPS")
+Rel(web, api_gateway, "Вызывает API", "REST, HTTPS")
+
+Rel(api_gateway, users, "Регистрация, вход, профиль\n/api/users/*, /api/auth/*", "REST, HTTP")
+Rel(api_gateway, movies, "Каталог и оценки\n/api/movies/*", "REST, HTTP")
+Rel(api_gateway, subscriptions, "Подписка и право доступа\n/api/subscriptions/*", "REST, HTTP")
+Rel(api_gateway, payments, "История и статус оплаты\n/api/payments/*", "REST, HTTP")
+Rel(api_gateway, events, "События просмотра\n/api/events/movie", "REST, HTTP")
+
+Rel(users, users_db, "Читает и пишет", "SQL")
+Rel(movies, movies_db, "Читает и пишет", "SQL")
+Rel(subscriptions, subscriptions_db, "Читает и пишет", "SQL")
+Rel(payments, payments_db, "Читает и пишет", "SQL")
+Rel(events, events_db, "Сохраняет события; читает историю", "SQL")
+
+Rel(payments, payment_provider, "Создаёт платёж; запрашивает итоговый статус", "REST, HTTPS")
+
+Rel(users, kafka, "Публикует user-events", "Kafka")
+Rel(movies, kafka, "Публикует movie-events", "Kafka")
+BiRel(subscriptions, kafka, "Публикует payment-commands, subscription-events;\nчитает payment-events", "Kafka")
+BiRel(payments, kafka, "Читает payment-commands;\nпубликует payment-events", "Kafka")
+BiRel(events, kafka, "Публикует view-events;\nчитает все *-events", "Kafka")
+
+Lay_R(users, movies)
+Lay_R(movies, events)
+Lay_R(events, subscriptions)
+Lay_R(subscriptions, payments)
+
+Lay_D(users_db, kafka)
+Lay_D(movies_db, kafka)
+Lay_D(subscriptions_db, kafka)
+Lay_D(payments_db, kafka)
+Lay_D(events_db, kafka)
+
+SHOW_LEGEND()
+@enduml

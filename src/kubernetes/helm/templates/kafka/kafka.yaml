@@ -62,6 +62,8 @@ spec:
       - name: zookeeper
         image: {{ .Values.zookeeper.image.repository }}:{{ .Values.zookeeper.image.tag }}
         imagePullPolicy: {{ .Values.zookeeper.image.pullPolicy }}
+        # Bound open files for the old JVM under kind/containerd.
+        command: ["/bin/sh", "-c", "ulimit -n 65536; /usr/sbin/sshd && exec bash /usr/bin/start-zk.sh"]
         ports:
         - containerPort: 2181
           name: client
@@ -72,13 +74,15 @@ spec:
         resources:
           {{- toYaml .Values.zookeeper.resources | nindent 10 }}
         env:
+        - name: SERVER_JVMFLAGS
+          value: "-Xms128m -Xmx256m"
         - name: ZOOKEEPER_CLIENT_PORT
           value: "2181"
         - name: ZOOKEEPER_TICK_TIME
           value: "2000"
         volumeMounts:
         - name: zookeeper-data
-          mountPath: /var/lib/zookeeper/data
+          mountPath: /opt/zookeeper-3.4.13/data
         readinessProbe:
           tcpSocket:
             port: 2181
@@ -176,6 +180,8 @@ spec:
           value: "{{ range $i, $topic := .Values.kafka.topics }}{{ if $i }},{{ end }}{{ $topic.name }}:{{ $topic.partitions }}:{{ $topic.replicationFactor }}{{ end }}"
         - name: KAFKA_AUTO_CREATE_TOPICS_ENABLE
           value: "true"
+        - name: KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR
+          value: "1"
         - name: KAFKA_BROKER_ID
           value: "1"
         - name: KAFKA_LOG_DIRS
